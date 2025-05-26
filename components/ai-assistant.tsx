@@ -44,6 +44,7 @@ export default function AiAssistant({
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isWideExpanded, setIsWideExpanded] = useState(false)
+  const [showDisclaimer, setShowDisclaimer] = useState(false)
 
   // Get messages from current session
   const currentSession = getCurrentSession()
@@ -55,6 +56,33 @@ export default function AiAssistant({
       timestamp: new Date(),
     },
   ]
+
+  // Check if we should show disclaimer based on session having AI responses
+  const shouldShowDisclaimer = currentSession?.messages?.some(m => m.role === "assistant") || showDisclaimer
+
+  // Reset disclaimer state when switching sessions
+  useEffect(() => {
+    const hasAIResponses = currentSession?.messages?.some(m => m.role === "assistant")
+    setShowDisclaimer(hasAIResponses || false)
+  }, [selectedSession, currentSessionId])
+
+  // Function to extract and remove disclaimer from AI response
+  const extractDisclaimer = (content: string): string => {
+    // Match disclaimer patterns - handle both markdown and plain text
+    const disclaimerPatterns = [
+      /\*\*Disclaimer:\*\*.*$/i,
+      /\*\*Disclaimer\*\*.*$/i,
+      /Disclaimer:.*$/i,
+      /\*\*Disclaimer:\*\*[\s\S]*$/i, // Multi-line
+    ]
+    
+    let cleanContent = content
+    disclaimerPatterns.forEach(pattern => {
+      cleanContent = cleanContent.replace(pattern, '').trim()
+    })
+    
+    return cleanContent
+  }
 
   // Function to create a new thread automatically
   const createNewThread = async () => {
@@ -129,10 +157,19 @@ export default function AiAssistant({
 
       const data = await response.json()
       
+      // Extract content and remove disclaimer if present
+      const rawContent = data.content || "I'm sorry, I couldn't process your request. Please try again."
+      const cleanContent = extractDisclaimer(rawContent)
+      
+      // Show disclaimer if this is an AI response and we haven't shown it yet
+      if (rawContent !== cleanContent) {
+        setShowDisclaimer(true)
+      }
+      
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data.content || "I'm sorry, I couldn't process your request. Please try again.",
+        content: cleanContent,
         timestamp: new Date(),
       }
 
@@ -164,6 +201,9 @@ export default function AiAssistant({
     
     // Create a new session with the thread ID
     createNewSession(threadId)
+    
+    // Reset disclaimer state for new conversation
+    setShowDisclaimer(false)
   }
 
   // Update the getSessionTitle function to work with current session
@@ -249,24 +289,35 @@ export default function AiAssistant({
           </div>
         </CardContent>
         <CardFooter className={`p-3 pt-0 ${isWideExpanded ? 'opacity-30' : ''}`}>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              handleSend()
-            }}
-            className="flex w-full items-center gap-2"
-          >
-            <Input
-              placeholder={selectedSession ? "Continue this session..." : "Ask about FX strategies..."}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              className="flex-1"
-              disabled={isLoading || isWideExpanded}
-            />
-            <Button type="submit" size="icon" className="h-8 w-8" disabled={isLoading || !input.trim() || isWideExpanded}>
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
-          </form>
+          <div className="flex w-full flex-col gap-2">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleSend()
+              }}
+              className="flex w-full items-center gap-2"
+            >
+              <Input
+                placeholder={selectedSession ? "Continue this session..." : "Ask about FX strategies..."}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="flex-1"
+                disabled={isLoading || isWideExpanded}
+              />
+              <Button type="submit" size="icon" className="h-8 w-8" disabled={isLoading || !input.trim() || isWideExpanded}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </form>
+            
+            {/* Disclaimer */}
+            {shouldShowDisclaimer && (
+              <div className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-md p-3 mt-1">
+                <span className="font-bold text-red-500 mr-1">!</span>
+                <span className="font-medium">Disclaimer:</span>
+                <span className="italic ml-1">This information is for analytical purposes only, based on available data and models. It is strictly not financial advice and may contain errors. Always conduct your own research and consult with a qualified financial advisor before making any investment decisions.</span>
+              </div>
+            )}
+          </div>
         </CardFooter>
       </Card>
 
@@ -327,24 +378,35 @@ export default function AiAssistant({
             </div>
           </CardContent>
           <CardFooter className="p-3 pt-0">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleSend()
-              }}
-              className="flex w-full items-center gap-2"
-            >
-              <Input
-                placeholder={selectedSession ? "Continue this session..." : "Ask about FX strategies..."}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                className="flex-1"
-                disabled={isLoading}
-              />
-              <Button type="submit" size="icon" className="h-8 w-8" disabled={isLoading || !input.trim()}>
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
-            </form>
+            <div className="flex w-full flex-col gap-2">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleSend()
+                }}
+                className="flex w-full items-center gap-2"
+              >
+                <Input
+                  placeholder={selectedSession ? "Continue this session..." : "Ask about FX strategies..."}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  className="flex-1"
+                  disabled={isLoading}
+                />
+                <Button type="submit" size="icon" className="h-8 w-8" disabled={isLoading || !input.trim()}>
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </form>
+              
+              {/* Disclaimer */}
+              {shouldShowDisclaimer && (
+                <div className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-md p-3 mt-1">
+                  <span className="font-bold text-red-500 mr-1">!</span>
+                  <span className="font-medium">Disclaimer:</span>
+                  <span className="italic ml-1">This information is for analytical purposes only, based on available data and models. It is strictly not financial advice and may contain errors. Always conduct your own research and consult with a qualified financial advisor before making any investment decisions.</span>
+                </div>
+              )}
+            </div>
           </CardFooter>
         </Card>
       )}

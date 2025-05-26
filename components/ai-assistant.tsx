@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { ChevronLeft, ChevronRight, Plus, Send, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -82,6 +82,65 @@ export default function AiAssistant({
     })
     
     return cleanContent
+  }
+
+  // Function to format message content for better readability
+  const formatMessageContent = (content: string) => {
+    if (!content) return content
+
+    // Helper function to format inline text (bold, etc.)
+    const formatInlineText = (text: string) => {
+      // Handle bold text (**text** or __text__)
+      const boldFormatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                               .replace(/__(.*?)__/g, '<strong>$1</strong>')
+      
+      return <span dangerouslySetInnerHTML={{ __html: boldFormatted }} />
+    }
+
+    // Split into paragraphs and process each one
+    const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim())
+    
+    return paragraphs.map((paragraph, index) => {
+      // Handle numbered lists (1. 2. 3. etc.)
+      if (/^\d+[.)]\s/.test(paragraph.trim())) {
+        const items = paragraph.split(/(?=\d+[.)]\s)/).filter(item => item.trim())
+        return (
+          <ol key={index} className="list-decimal list-inside space-y-2 my-3 ml-2">
+            {items.map((item, itemIndex) => (
+              <li key={itemIndex} className="leading-relaxed">
+                {formatInlineText(item.replace(/^\d+[.)]\s/, ''))}
+              </li>
+            ))}
+          </ol>
+        )
+      }
+      
+      // Handle bullet points or dashes
+      if (/^[-•*]\s/.test(paragraph.trim())) {
+        const items = paragraph.split(/(?=[-•*]\s)/).filter(item => item.trim())
+        return (
+          <ul key={index} className="list-disc list-inside space-y-2 my-3 ml-2">
+            {items.map((item, itemIndex) => (
+              <li key={itemIndex} className="leading-relaxed">
+                {formatInlineText(item.replace(/^[-•*]\s/, ''))}
+              </li>
+            ))}
+          </ul>
+        )
+      }
+      
+      // Handle regular paragraphs with line breaks
+      const lines = paragraph.split('\n').filter(line => line.trim())
+      return (
+        <div key={index} className="mb-4 last:mb-0">
+          {lines.map((line, lineIndex) => (
+            <div key={lineIndex} className="leading-relaxed mb-1 last:mb-0">
+              {formatInlineText(line.trim())}
+            </div>
+          ))}
+        </div>
+      )
+    })
   }
 
   // Function to create a new thread automatically
@@ -273,7 +332,7 @@ export default function AiAssistant({
                     message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  {message.content}
+                  {formatMessageContent(message.content)}
                 </div>
               </div>
             ))}
@@ -362,7 +421,7 @@ export default function AiAssistant({
                       message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    {message.content}
+                    {formatMessageContent(message.content)}
                   </div>
                 </div>
               ))}

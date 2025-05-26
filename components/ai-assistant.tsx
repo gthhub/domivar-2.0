@@ -218,6 +218,7 @@ export default function AiAssistant({ expanded, setExpanded, selectedSession }: 
   ])
   const [isLoading, setIsLoading] = useState(false)
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null)
+  const [isWideExpanded, setIsWideExpanded] = useState(false)
 
   // Function to create a new thread automatically
   const createNewThread = async () => {
@@ -398,74 +399,172 @@ export default function AiAssistant({ expanded, setExpanded, selectedSession }: 
   }
 
   return (
-    <Card className="flex h-full w-80 flex-col border-l border-r-0 border-t-0 border-b-0 rounded-none shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-3 border-b">
-        <CardTitle className="text-sm font-medium">{getSessionTitle()}</CardTitle>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={handleNewConversation} className="h-8 px-2">
-            <Plus className="h-4 w-4 mr-1" />
-            <span className="text-xs">New</span>
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => setExpanded(false)} className="h-8 w-8">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-auto p-4">
-        <div className="space-y-4">
-          {selectedSession && (
-            <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 mb-4">
-              Viewing chat history for: {getSessionTitle()}
-              {currentThreadId && (
-                <div className="mt-1 text-xs opacity-70">
-                  Thread: {currentThreadId.slice(-8)}
+    <>
+      {/* Original chat that maintains layout space */}
+      <Card className="flex h-full w-80 flex-col border-l border-r-0 border-t-0 border-b-0 rounded-none shadow-none">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-3 border-b">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setIsWideExpanded(!isWideExpanded)} 
+              className="h-8 w-8"
+              title={isWideExpanded ? "Collapse chat" : "Expand chat"}
+            >
+              {isWideExpanded ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </Button>
+            <CardTitle className="text-sm font-medium">{getSessionTitle()}</CardTitle>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={handleNewConversation} className="h-8 px-2">
+              <Plus className="h-4 w-4 mr-1" />
+              <span className="text-xs">New</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setExpanded(false)} className="h-8 w-8">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className={`flex-1 overflow-auto p-4 ${isWideExpanded ? 'opacity-30' : ''}`}>
+          <div className="space-y-4">
+            {selectedSession && (
+              <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 mb-4">
+                Viewing chat history for: {getSessionTitle()}
+                {currentThreadId && (
+                  <div className="mt-1 text-xs opacity-70">
+                    Thread: {currentThreadId.slice(-8)}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {messages.map((message) => (
+              <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                    message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {message.content}
+                </div>
+              </div>
+            ))}
+            
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Dom is thinking...
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+        <CardFooter className={`p-3 pt-0 ${isWideExpanded ? 'opacity-30' : ''}`}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSend()
+            }}
+            className="flex w-full items-center gap-2"
+          >
+            <Input
+              placeholder={selectedSession ? "Continue this session..." : "Ask about FX strategies..."}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="flex-1"
+              disabled={isLoading || isWideExpanded}
+            />
+            <Button type="submit" size="icon" className="h-8 w-8" disabled={isLoading || !input.trim() || isWideExpanded}>
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </form>
+        </CardFooter>
+      </Card>
+
+      {/* Expanded overlay */}
+      {isWideExpanded && (
+        <Card className="fixed right-0 top-0 z-50 flex h-full w-[640px] flex-col border-l border-r-0 border-t-0 border-b-0 rounded-none shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-3 border-b">
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setIsWideExpanded(false)} 
+                className="h-8 w-8"
+                title="Collapse chat"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <CardTitle className="text-sm font-medium">{getSessionTitle()}</CardTitle>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={handleNewConversation} className="h-8 px-2">
+                <Plus className="h-4 w-4 mr-1" />
+                <span className="text-xs">New</span>
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setExpanded(false)} className="h-8 w-8">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-auto p-4">
+            <div className="space-y-4">
+              {selectedSession && (
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 mb-4">
+                  Viewing chat history for: {getSessionTitle()}
+                  {currentThreadId && (
+                    <div className="mt-1 text-xs opacity-70">
+                      Thread: {currentThreadId.slice(-8)}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {messages.map((message) => (
+                <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                      message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {message.content}
+                  </div>
+                </div>
+              ))}
+              
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Dom is thinking...
+                  </div>
                 </div>
               )}
             </div>
-          )}
-          
-          {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                  message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {message.content}
-              </div>
-            </div>
-          ))}
-          
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-sm flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Dom is thinking...
-              </div>
-            </div>
-          )}
-        </div>
-      </CardContent>
-      <CardFooter className="p-3 pt-0">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleSend()
-          }}
-          className="flex w-full items-center gap-2"
-        >
-          <Input
-            placeholder={selectedSession ? "Continue this session..." : "Ask about FX strategies..."}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1"
-            disabled={isLoading}
-          />
-          <Button type="submit" size="icon" className="h-8 w-8" disabled={isLoading || !input.trim()}>
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </form>
-      </CardFooter>
-    </Card>
+          </CardContent>
+          <CardFooter className="p-3 pt-0">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleSend()
+              }}
+              className="flex w-full items-center gap-2"
+            >
+              <Input
+                placeholder={selectedSession ? "Continue this session..." : "Ask about FX strategies..."}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="flex-1"
+                disabled={isLoading}
+              />
+              <Button type="submit" size="icon" className="h-8 w-8" disabled={isLoading || !input.trim()}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </form>
+          </CardFooter>
+        </Card>
+      )}
+    </>
   )
 }

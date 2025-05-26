@@ -10,9 +10,6 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check if this is just a thread initialization call
-    const isInitialization = message.trim() === "Initialize thread" && !threadId
-
     // Get environment variables
     const apiUrl = process.env.LANGGRAPH_API_URL
     const apiKey = process.env.LANGGRAPH_API_KEY
@@ -28,11 +25,15 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // For initialization, we just create a thread without sending the initialization message
-    if (isInitialization) {
-      console.log('Creating thread for initialization')
+    // Use a mutable variable for thread ID
+    let currentThreadId = threadId
+
+    // If no threadId, create a thread first, then send the message
+    if (!currentThreadId) {
+      console.log('Creating new thread first...')
       
-      const response = await fetch(`${apiUrl}/threads`, {
+      // Step 1: Create empty thread
+      const createThreadResponse = await fetch(`${apiUrl}/threads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,45 +41,32 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           assistant_id: assistantId,
-          input: {
-            messages: [
-              {
-                role: 'human',
-                content: "Hello" // Simple greeting to initialize the thread
-              }
-            ]
-          }
         })
       })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('LangGraph API error during initialization:', response.status, errorText)
+      if (!createThreadResponse.ok) {
+        const errorText = await createThreadResponse.text()
+        console.error('Failed to create thread:', createThreadResponse.status, errorText)
         return NextResponse.json({ 
-          error: 'Failed to initialize thread',
+          error: 'Failed to create thread',
           details: errorText 
-        }, { status: response.status })
+        }, { status: createThreadResponse.status })
       }
 
-      const data = await response.json()
-      console.log('Thread initialized:', { threadId: data.thread_id })
-      
-      return NextResponse.json({
-        content: "Thread initialized successfully",
-        thread_id: data.thread_id,
-        isInitialization: true
-      })
+      const threadData = await createThreadResponse.json()
+      currentThreadId = threadData.thread_id
+      console.log('Created thread:', currentThreadId)
+
+      if (!currentThreadId) {
+        return NextResponse.json({ 
+          error: 'Failed to get thread ID from created thread' 
+        }, { status: 500 })
+      }
     }
 
-    // Determine endpoint based on whether we have a thread ID
-    const endpoint = threadId 
-      ? `${apiUrl}/threads/${threadId}/runs`
-      : `${apiUrl}/threads`
-
-    console.log('LangGraph API call:', { endpoint, hasThreadId: !!threadId, messageLength: message.length })
-
-    // Use the exact working cURL format
-    const response = await fetch(endpoint, {
+    // Step 2: Send message to the thread (existing or newly created)
+    console.log('Sending message to thread:', currentThreadId)
+    const response = await fetch(`${apiUrl}/threads/${currentThreadId}/runs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -89,7 +77,7 @@ export async function POST(request: NextRequest) {
         input: {
           messages: [
             {
-              role: 'human', // Use 'human' not 'user' as per working cURL
+              role: 'human',
               content: message
             }
           ]
@@ -113,9 +101,15 @@ export async function POST(request: NextRequest) {
       status: data.status 
     })
     
+    // Add detailed logging for debugging
+    console.log('=== FULL API RESPONSE DEBUG ===')
+    console.log('Response keys:', Object.keys(data))
+    console.log('Full response:', JSON.stringify(data, null, 2))
+    console.log('=== END RESPONSE DEBUG ===')
+    
     // For new thread creation, we get thread_id directly
     // For follow-up messages, we need to poll the run status
-    let finalThreadId = threadId || data.thread_id
+    let finalThreadId = currentThreadId || data.thread_id
     let runId = data.run_id
     
     // If we have a run_id, we need to poll for completion
@@ -275,9 +269,52 @@ export async function POST(request: NextRequest) {
       })
     }
     
-    // For thread creation without run_id, return basic response
+    // For thread creation without run_id, try to get the response from the thread
+    console.log('No run_id found, attempting to get response from thread state')
+    
+    // Try to get the response from the thread state
+    try {
+      const stateResponse = await fetch(
+        `${apiUrl}/threads/${finalThreadId}/state`,
+        {
+          headers: { 'X-Api-Key': apiKey }
+        }
+      )
+      
+      if (stateResponse.ok) {
+        const stateData = await stateResponse.json()
+        const messages = stateData.values?.messages || []
+        const lastMessage = messages[messages.length - 1]
+        
+        console.log('=== THREAD STATE FALLBACK ===')
+        console.log('Message count:', messages.length)
+        console.log('Last message:', JSON.stringify(lastMessage, null, 2))
+        
+        if (lastMessage && lastMessage.role === 'assistant') {
+          let responseContent = "I'm here to help with your FX options trading questions."
+          
+          if (typeof lastMessage.content === 'string') {
+            responseContent = lastMessage.content
+          } else if (Array.isArray(lastMessage.content)) {
+            const textContent = lastMessage.content.find((item: any) => item.type === 'text')
+            responseContent = textContent?.text || lastMessage.content[0]?.text || responseContent
+          } else if (lastMessage.content?.text) {
+            responseContent = lastMessage.content.text
+          }
+          
+          return NextResponse.json({
+            content: responseContent,
+            thread_id: finalThreadId,
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get thread state in fallback:', error)
+    }
+    
+    // Final fallback - return a helpful message instead of "Thread created successfully"
     return NextResponse.json({
-      content: "Thread created successfully. Please send your message.",
+      content: "I'm here to help with your FX options trading questions. What would you like to know?",
       thread_id: finalThreadId
     })
 

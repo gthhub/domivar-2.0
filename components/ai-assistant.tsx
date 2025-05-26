@@ -143,33 +143,6 @@ export default function AiAssistant({
     })
   }
 
-  // Function to create a new thread automatically
-  const createNewThread = async () => {
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: "Initialize thread", // Simple initialization message
-          threadId: null, // No existing thread
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.thread_id) {
-          console.log('Thread created automatically:', data.thread_id)
-          return data.thread_id
-        }
-      }
-    } catch (error) {
-      console.error('Failed to create thread automatically:', error)
-    }
-    return null
-  }
-
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
 
@@ -184,20 +157,32 @@ export default function AiAssistant({
     let sessionId = selectedSession || currentSessionId
     let session = getCurrentSession()
 
-    // If no active session, create a new one
+    // If no active session, create a new one (but don't create thread yet)
     if (!sessionId || !session) {
       sessionId = createNewSession()
       session = getCurrentSession()
     }
 
     // Update messages immediately for UI responsiveness
-    const updatedMessages = [...(session?.messages || []), userMessage]
+    // If this is a new session with no messages, include the greeting message
+    const currentMessages = session?.messages || []
+    const messagesWithGreeting = currentMessages.length === 0 ? [
+      {
+        id: "greeting",
+        role: "assistant" as const,
+        content: "Hello! I'm Dom, your FX Options Trading AI assistant. Let's get started.",
+        timestamp: new Date(),
+      }
+    ] : currentMessages
+    
+    const updatedMessages = [...messagesWithGreeting, userMessage]
     updateSession(sessionId, updatedMessages, session?.threadId)
 
     setInput("")
     setIsLoading(true)
 
     try {
+      // Send the actual user message directly - let the API create the thread if needed
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -205,7 +190,7 @@ export default function AiAssistant({
         },
         body: JSON.stringify({
           message: input,
-          threadId: session?.threadId,
+          threadId: session?.threadId, // This will be null for new sessions, causing API to create thread
         }),
       })
 
@@ -255,11 +240,8 @@ export default function AiAssistant({
   }
 
   const handleNewConversation = async () => {
-    // Create a new thread first
-    const threadId = await createNewThread()
-    
-    // Create a new session with the thread ID
-    const sessionId = createNewSession(threadId)
+    // Create a new session without a thread ID (thread will be created when first message is sent)
+    const sessionId = createNewSession()
     
     // Add the introductory message to the new session
     const introMessage: Message = {
@@ -269,7 +251,7 @@ export default function AiAssistant({
       timestamp: new Date(),
     }
     
-    updateSession(sessionId, [introMessage], threadId)
+    updateSession(sessionId, [introMessage])
     
     // Reset disclaimer state for new conversation
     setShowDisclaimer(false)

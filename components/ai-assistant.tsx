@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Plus, Send, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Send, Loader2, Expand, Shrink, PanelRightClose, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -299,7 +299,7 @@ export default function AiAssistant({
     return (
       <div className="flex flex-col items-center border-l border-border bg-background/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <Button variant="ghost" size="icon" onClick={() => setExpanded(true)} className="h-8 w-8">
-          <ChevronLeft className="h-4 w-4" />
+          <MessageSquare className="h-4 w-4" />
         </Button>
       </div>
     )
@@ -318,17 +318,17 @@ export default function AiAssistant({
               className="h-8 w-8"
               title={isWideExpanded ? "Collapse chat" : "Expand chat"}
             >
-              {isWideExpanded ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              {isWideExpanded ? <Shrink className="h-4 w-4" /> : <Expand className="h-4 w-4" />}
             </Button>
             <CardTitle className="text-sm font-medium">{getSessionTitle()}</CardTitle>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={handleNewConversation} className="h-8 px-2">
-              <Plus className="h-4 w-4 mr-1" />
+            <Button variant="ghost" size="sm" onClick={handleNewConversation} className="h-8 px-2 border border-border">
+              <Plus className="h-4 w-4" />
               <span className="text-xs">New</span>
             </Button>
             <Button variant="ghost" size="icon" onClick={() => setExpanded(false)} className="h-8 w-8">
-              <ChevronRight className="h-4 w-4" />
+              <PanelRightClose className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
@@ -407,17 +407,17 @@ export default function AiAssistant({
                 className="h-8 w-8"
                 title="Collapse chat"
               >
-                <ChevronRight className="h-4 w-4" />
+                <Shrink className="h-4 w-4" />
               </Button>
               <CardTitle className="text-sm font-medium">{getSessionTitle()}</CardTitle>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={handleNewConversation} className="h-8 px-2">
-                <Plus className="h-4 w-4 mr-1" />
+              <Button variant="ghost" size="sm" onClick={handleNewConversation} className="h-8 px-2 border border-border">
+                <Plus className="h-4 w-4" />
                 <span className="text-xs">New</span>
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setExpanded(false)} className="h-8 w-8">
-                <ChevronRight className="h-4 w-4" />
+                <PanelRightClose className="h-4 w-4" />
               </Button>
             </div>
           </CardHeader>

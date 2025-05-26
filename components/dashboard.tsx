@@ -173,7 +173,6 @@ export default function Dashboard() {
     setChatSessions(prev => [newSession, ...prev])
     setCurrentSessionId(newSessionId)
     setSelectedSession(null) // Clear selected session when creating new one
-    setCurrentView("portfolio") // Go back to main view
     
     return newSessionId
   }

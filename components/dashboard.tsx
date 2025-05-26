@@ -5,7 +5,7 @@ import Header from "./header"
 import Sidebar from "./sidebar"
 import PortfolioSummary from "./portfolio-summary"
 import AiRiskAnalysis from "./ai-risk-analysis"
-import MarketViews from "./market-views"
+import MarketViewsDynamic from "./market-views-dynamic"
 import ScenarioAnalysis from "./scenario-analysis"
 import OptionsPricer from "./options-pricer"
 import Newsflow from "./newsflow"
@@ -13,6 +13,7 @@ import ChatSessionView from "./chat-session-view" // Added import
 // import ChatOutputs from "./chat-outputs" // Commented out
 import Settings from "./settings"
 import AiAssistant from "./ai-assistant"
+import { MarketViewsProvider } from "./market-views-context"
 
 type View = "portfolio" | "airisk" | "scenario" | "market" | "newsflow" | "optionspricer" | "session" | "settings" // Updated type
 
@@ -223,7 +224,8 @@ export default function Dashboard() {
       case "scenario":
         return <ScenarioAnalysis />
       case "market":
-        return <MarketViews />
+        const currentSession = getCurrentSession()
+        return <MarketViewsDynamic threadId={currentSession?.threadId} />
       case "newsflow":
         return <Newsflow />
       case "optionspricer":
@@ -240,27 +242,29 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
-      <Header />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          currentView={currentView}
-          setCurrentView={setCurrentView}
-          selectedSession={selectedSession}
-          setSelectedSession={setSelectedSession}
-          chatSessions={chatSessions}
-        />
-        <main className="flex-1 overflow-auto p-6">{renderContent()}</main>
-        <AiAssistant 
-          expanded={aiPanelExpanded} 
-          setExpanded={setAiPanelExpanded} 
-          selectedSession={selectedSession}
-          currentSessionId={currentSessionId}
-          getCurrentSession={getCurrentSession}
-          createNewSession={createNewSession}
-          updateSession={updateSession}
-        />
+    <MarketViewsProvider>
+      <div className="flex h-screen flex-col bg-background text-foreground">
+        <Header />
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar
+            currentView={currentView}
+            setCurrentView={setCurrentView}
+            selectedSession={selectedSession}
+            setSelectedSession={setSelectedSession}
+            chatSessions={chatSessions}
+          />
+          <main className="flex-1 overflow-auto p-6">{renderContent()}</main>
+          <AiAssistant 
+            expanded={aiPanelExpanded} 
+            setExpanded={setAiPanelExpanded} 
+            selectedSession={selectedSession}
+            currentSessionId={currentSessionId}
+            getCurrentSession={getCurrentSession}
+            createNewSession={createNewSession}
+            updateSession={updateSession}
+          />
+        </div>
       </div>
-    </div>
+    </MarketViewsProvider>
   )
 }

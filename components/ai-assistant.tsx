@@ -5,6 +5,8 @@ import { ChevronLeft, ChevronRight, Plus, Send, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { useMarketViews } from "./market-views-context"
 
 type Message = {
   id: string
@@ -45,6 +47,9 @@ export default function AiAssistant({
   const [isLoading, setIsLoading] = useState(false)
   const [isWideExpanded, setIsWideExpanded] = useState(false)
   const [showDisclaimer, setShowDisclaimer] = useState(false)
+
+  // Add market views context
+  const { updateMarketViews } = useMarketViews()
 
   // Get messages from current session
   const currentSession = getCurrentSession()
@@ -157,24 +162,23 @@ export default function AiAssistant({
     let sessionId = selectedSession || currentSessionId
     let session = getCurrentSession()
 
-    // If no active session, create a new one (but don't create thread yet)
+    // If no active session, create a new one
     if (!sessionId || !session) {
       sessionId = createNewSession()
       session = getCurrentSession()
     }
 
-    // Update messages immediately for UI responsiveness
-    // If this is a new session with no messages, include the greeting message
-    const currentMessages = session?.messages || []
-    const messagesWithGreeting = currentMessages.length === 0 ? [
+    // For new sessions, add greeting message first
+    const messagesWithGreeting = session?.messages?.length === 0 ? [
       {
         id: "greeting",
         role: "assistant" as const,
         content: "Hello! I'm Dom, your FX Options Trading AI assistant. Let's get started.",
         timestamp: new Date(),
       }
-    ] : currentMessages
-    
+    ] : session?.messages || []
+
+    // Update messages immediately for UI responsiveness
     const updatedMessages = [...messagesWithGreeting, userMessage]
     updateSession(sessionId, updatedMessages, session?.threadId)
 
@@ -200,6 +204,25 @@ export default function AiAssistant({
       }
 
       const data = await response.json()
+      
+      // ✅ NEW: Enhanced debugging for graph state
+      console.log('=== FRONTEND GRAPH STATE DEBUG ===')
+      console.log('Full API response data:', JSON.stringify(data, null, 2))
+      console.log('Available data keys:', Object.keys(data))
+      console.log('Has graph_state?', !!data.graph_state)
+      
+      if (data.graph_state) {
+        console.log('Received graph state:', JSON.stringify(data.graph_state, null, 2))
+        console.log('Market views specifically:', data.graph_state.market_views)
+        console.log('Full state:', data.graph_state.full_state)
+        console.log('Calling updateMarketViews...')
+        updateMarketViews(data.graph_state)
+        console.log('updateMarketViews called successfully')
+      } else {
+        console.log('No graph_state received in API response')
+        console.log('Available data keys:', Object.keys(data))
+      }
+      console.log('=== END FRONTEND DEBUG ===')
       
       // Extract content and remove disclaimer if present
       const rawContent = data.content || "I'm sorry, I couldn't process your request. Please try again."

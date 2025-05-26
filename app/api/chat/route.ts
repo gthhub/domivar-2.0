@@ -203,9 +203,16 @@ export async function POST(request: NextRequest) {
               const lastMessage = messages[messages.length - 1]
               
               console.log('=== LANGGRAPH RESPONSE DEBUG ===')
+              console.log('Full state data keys:', Object.keys(stateData))
+              console.log('State values keys:', stateData.values ? Object.keys(stateData.values) : 'No values')
               console.log('Message count:', messages.length)
               console.log('Last message type:', typeof lastMessage?.content)
               console.log('Last message content preview:', JSON.stringify(lastMessage?.content).substring(0, 200) + '...')
+              
+              // ✅ NEW: Log the full state data to see what's available
+              console.log('=== FULL STATE DATA ===')
+              console.log('State data:', JSON.stringify(stateData, null, 2))
+              console.log('=== END FULL STATE ===')
               
               // Extract just the text content from the assistant's response
               let responseContent = "I'm processing your request. Please try again."
@@ -240,7 +247,9 @@ export async function POST(request: NextRequest) {
                   current_query: stateData.values?.current_query,
                   intent: stateData.values?.intent,
                   preferences: stateData.values?.preferences,
-                  market_views: stateData.values?.market_views
+                  market_views: stateData.values?.market_views,
+                  // ✅ NEW: Include the full state values for debugging
+                  full_state: stateData.values
                 }
               })
             } else {

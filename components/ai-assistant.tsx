@@ -259,7 +259,17 @@ export default function AiAssistant({
     const threadId = await createNewThread()
     
     // Create a new session with the thread ID
-    createNewSession(threadId)
+    const sessionId = createNewSession(threadId)
+    
+    // Add the introductory message to the new session
+    const introMessage: Message = {
+      id: Date.now().toString(),
+      role: "assistant",
+      content: "Hello! I'm Dom, your FX Options Trading AI assistant. Let's get started.",
+      timestamp: new Date(),
+    }
+    
+    updateSession(sessionId, [introMessage], threadId)
     
     // Reset disclaimer state for new conversation
     setShowDisclaimer(false)
@@ -357,7 +367,7 @@ export default function AiAssistant({
               className="flex w-full items-center gap-2"
             >
               <Input
-                placeholder={selectedSession ? "Continue this session..." : "Ask about FX strategies..."}
+                placeholder={selectedSession ? "Continue this session..." : "What's on your mind?"}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 className="flex-1"
@@ -446,7 +456,7 @@ export default function AiAssistant({
                 className="flex w-full items-center gap-2"
               >
                 <Input
-                  placeholder={selectedSession ? "Continue this session..." : "Ask about FX strategies..."}
+                  placeholder={selectedSession ? "Continue this session..." : "What's on your mind?"}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   className="flex-1"

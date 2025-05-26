@@ -26,61 +26,10 @@ type SidebarProps = {
   setCurrentView: (view: any) => void
   selectedSession: string | null
   setSelectedSession: (sessionId: string | null) => void
+  chatSessions: ChatSession[]
 }
 
-// Add more sample chat sessions to test scrolling
-const chatSessions: ChatSession[] = [
-  {
-    id: "session-1",
-    title: "Upcoming Fed Scenarios",
-    lastActivity: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-    messageCount: 12,
-  },
-  {
-    id: "session-2",
-    title: "EUR/USD Volatility Analysis",
-    lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    messageCount: 9,
-  },
-  {
-    id: "session-3",
-    title: "BoJ Policy Impact Assessment",
-    lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-    messageCount: 15,
-  },
-  {
-    id: "session-4",
-    title: "Portfolio Risk Hedging",
-    lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
-    messageCount: 6,
-  },
-  {
-    id: "session-5",
-    title: "GBP Election Scenarios",
-    lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), // 3 days ago
-    messageCount: 9,
-  },
-  {
-    id: "session-6",
-    title: "AUD/USD Carry Trade Analysis",
-    lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4), // 4 days ago
-    messageCount: 7,
-  },
-  {
-    id: "session-7",
-    title: "USD/CAD Oil Correlation Study",
-    lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5), // 5 days ago
-    messageCount: 11,
-  },
-  {
-    id: "session-8",
-    title: "CHF Safe Haven Dynamics",
-    lastActivity: new Date(Date.now() - 1000 * 60 * 60 * 24 * 6), // 6 days ago
-    messageCount: 8,
-  },
-]
-
-export default function Sidebar({ currentView, setCurrentView, selectedSession, setSelectedSession }: SidebarProps) {
+export default function Sidebar({ currentView, setCurrentView, selectedSession, setSelectedSession, chatSessions }: SidebarProps) {
   const [sessionsExpanded, setSessionsExpanded] = useState(false)
 
   const menuItems = [

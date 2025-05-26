@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     // Get environment variables
     const apiUrl = process.env.LANGGRAPH_API_URL
     const apiKey = process.env.LANGGRAPH_API_KEY
-    const assistantId = process.env.LANGGRAPH_ASSISTANT_ID || 'vol_multi'
+    const assistantId = process.env.LANGGRAPH_ASSISTANT_ID 
 
     if (!apiUrl || !apiKey) {
       console.error('Missing required environment variables:', { 
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       
       // Poll for run completion
       let attempts = 0
-      const maxAttempts = 30 // 30 seconds max
+      const maxAttempts = 120 // 2 minutes max for complex financial analysis
       
       while (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second
@@ -138,10 +138,64 @@ export async function POST(request: NextRequest) {
         
         if (statusResponse.ok) {
           const statusData = await statusResponse.json()
-          console.log(`Poll attempt ${attempts + 1}:`, statusData.status)
+          console.log(`Poll attempt ${attempts + 1}/${maxAttempts}:`, statusData.status)
+          
+          // Add more detailed status logging for long-running queries
+          if (attempts > 30 && attempts % 10 === 0) {
+            console.log(`Long-running query: still ${statusData.status} after ${attempts} seconds`)
+          }
           
           if (statusData.status === 'success') {
-            // Get the full thread state to extract the response
+            // Try to get response from the run data first
+            if (statusData.output && statusData.output.messages) {
+              const messages = statusData.output.messages
+              const lastMessage = messages[messages.length - 1]
+              
+              console.log('=== USING RUN OUTPUT ===')
+              console.log('Run output messages:', messages.length)
+              console.log('Last message from run:', JSON.stringify(lastMessage, null, 2))
+              
+              if (lastMessage && lastMessage.content) {
+                return NextResponse.json({
+                  content: lastMessage.content,
+                  thread_id: finalThreadId,
+                })
+              }
+            }
+            
+            // Fallback to thread state if run output doesn't have messages
+            // Try getting just messages first instead of full state
+            const messagesResponse = await fetch(
+              `${apiUrl}/threads/${finalThreadId}/messages`,
+              {
+                headers: { 'X-Api-Key': apiKey }
+              }
+            )
+            
+            if (messagesResponse.ok) {
+              const messagesData = await messagesResponse.json()
+              console.log('=== MESSAGES ENDPOINT ===')
+              console.log('Messages response:', JSON.stringify(messagesData, null, 2))
+              
+              // Extract the last assistant message
+              if (messagesData && Array.isArray(messagesData)) {
+                const lastAssistantMessage = messagesData
+                  .filter(msg => msg.role === 'assistant' || msg.type === 'ai')
+                  .pop()
+                
+                if (lastAssistantMessage && lastAssistantMessage.content) {
+                  console.log('Using message from messages endpoint')
+                  return NextResponse.json({
+                    content: lastAssistantMessage.content,
+                    thread_id: finalThreadId,
+                  })
+                }
+              }
+            } else {
+              console.log('Messages endpoint not available, falling back to state')
+            }
+            
+            // Final fallback to thread state
             const stateResponse = await fetch(
               `${apiUrl}/threads/${finalThreadId}/state`,
               {
@@ -154,13 +208,39 @@ export async function POST(request: NextRequest) {
               const messages = stateData.values?.messages || []
               const lastMessage = messages[messages.length - 1]
               
-              console.log('Successfully retrieved response:', { 
-                messageCount: messages.length,
-                hasLastMessage: !!lastMessage 
-              })
+              console.log('=== LANGGRAPH RESPONSE DEBUG ===')
+              console.log('Message count:', messages.length)
+              console.log('Last message type:', typeof lastMessage?.content)
+              console.log('Last message content preview:', JSON.stringify(lastMessage?.content).substring(0, 200) + '...')
+              
+              // Extract just the text content from the assistant's response
+              let responseContent = "I'm processing your request. Please try again."
+              
+              if (lastMessage) {
+                // Handle different possible response formats
+                if (typeof lastMessage.content === 'string') {
+                  responseContent = lastMessage.content
+                  console.log('Using string content directly')
+                } else if (Array.isArray(lastMessage.content)) {
+                  // If content is an array, find text content
+                  const textContent = lastMessage.content.find((item: any) => item.type === 'text')
+                  responseContent = textContent?.text || lastMessage.content[0]?.text || JSON.stringify(lastMessage.content)
+                  console.log('Using array content, found text:', !!textContent)
+                } else if (lastMessage.content?.text) {
+                  responseContent = lastMessage.content.text
+                  console.log('Using content.text property')
+                } else {
+                  // Fallback: stringify the content
+                  responseContent = JSON.stringify(lastMessage.content)
+                  console.log('Using stringified content as fallback')
+                }
+              }
+              
+              console.log('Final response length:', responseContent.length)
+              console.log('=== END DEBUG ===')
               
               return NextResponse.json({
-                content: lastMessage?.content || "I'm processing your request. Please try again.",
+                content: responseContent,
                 thread_id: finalThreadId,
                 graph_state: {
                   current_query: stateData.values?.current_query,
@@ -188,9 +268,9 @@ export async function POST(request: NextRequest) {
       }
       
       // If we timeout, return what we have
-      console.warn('Polling timeout reached')
+      console.warn(`Polling timeout reached after ${maxAttempts} seconds`)
       return NextResponse.json({
-        content: "I'm still processing your request. Please try again in a moment.",
+        content: "Your query is taking longer than expected to process. This often happens with complex financial analysis. Please try asking a simpler question or try again in a moment.",
         thread_id: finalThreadId
       })
     }

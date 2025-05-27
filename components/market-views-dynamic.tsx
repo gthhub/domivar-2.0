@@ -204,7 +204,7 @@ export default function MarketViewsDynamic({ threadId }: { threadId?: string }) 
         </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 max-h-96 overflow-y-auto">
         {views.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -254,7 +254,7 @@ export default function MarketViewsDynamic({ threadId }: { threadId?: string }) 
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 max-h-96 overflow-y-auto">
         {views.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -324,7 +324,7 @@ export default function MarketViewsDynamic({ threadId }: { threadId?: string }) 
           <CardTitle>All Market Views ({allViews.length})</CardTitle>
           <CardDescription>Complete list of your market views, sorted by most recent</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 max-h-[48rem] overflow-y-auto">
           {allViews.map((view) => (
             <div key={view.id} className="border rounded-lg p-4 space-y-2">
               <div className="flex items-center justify-between">

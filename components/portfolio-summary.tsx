@@ -210,7 +210,7 @@ export default function PortfolioSummary() {
             <ArrowUp className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+385k</div>
+            <div className="text-2xl font-bold">+45k</div>
             <p className="text-xs text-muted-foreground">Parallel</p>
           </CardContent>
         </Card>

@@ -64,11 +64,11 @@ export default function Sidebar({ currentView, setCurrentView, selectedSession, 
       label: "Newsflow",
       icon: Newspaper,
     },
-    {
-      id: "optionspricer",
-      label: "Options Pricer",
-      icon: Calculator,
-    },
+    // {
+    //   id: "optionspricer",
+    //   label: "Options Pricer",
+    //   icon: Calculator,
+    // },
     // Commented out Chat Outputs
     // {
     //   id: "chatoutputs",

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Plus, Send, Loader2, Expand, Shrink, PanelRightClose, MessageSquare } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Send, Loader2, Expand, Shrink, PanelRightClose, MessageSquare, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -22,6 +22,8 @@ type ChatSession = {
   messageCount: number
   threadId?: string
   messages: Message[]
+  analysisOutputs?: Array<any>
+  hasUnviewedResults?: boolean
 }
 
 type AiAssistantProps = {
@@ -32,6 +34,7 @@ type AiAssistantProps = {
   getCurrentSession: () => ChatSession | null
   createNewSession: (threadId?: string) => string
   updateSession: (sessionId: string, messages: Message[], threadId?: string) => void
+  navigateToSessionResults?: (sessionId: string) => void
 }
 
 export default function AiAssistant({ 
@@ -41,7 +44,8 @@ export default function AiAssistant({
   currentSessionId,
   getCurrentSession,
   createNewSession,
-  updateSession 
+  updateSession,
+  navigateToSessionResults
 }: AiAssistantProps) {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -340,6 +344,28 @@ export default function AiAssistant({
               </div>
             )}
             
+            {currentSession && currentSession.analysisOutputs.length > 0 && (
+              <Button
+                variant={currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => navigateToSessionResults(currentSession.id)}
+                className={
+                  currentSession.hasUnviewedResults && selectedSession !== currentSession.id
+                    ? "bg-blue-500 text-white hover:bg-blue-600 animate-pulse"
+                    : "text-blue-500 hover:text-blue-600"
+                }
+              >
+                {currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? (
+                  <>
+                    <span className="mr-1">🔔</span>
+                    New Analysis Results Available
+                  </>
+                ) : (
+                  "View Analysis Results"
+                )}
+              </Button>
+            )}
+            
             {messages.map((message) => (
               <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
@@ -429,6 +455,28 @@ export default function AiAssistant({
                 </div>
               )}
               
+              {currentSession && currentSession.analysisOutputs.length > 0 && (
+                <Button
+                  variant={currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => navigateToSessionResults(currentSession.id)}
+                  className={
+                    currentSession.hasUnviewedResults && selectedSession !== currentSession.id
+                      ? "bg-blue-500 text-white hover:bg-blue-600 animate-pulse"
+                      : "text-blue-500 hover:text-blue-600"
+                  }
+                >
+                  {currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? (
+                    <>
+                      <span className="mr-1">🔔</span>
+                      New Analysis Results Available
+                    </>
+                  ) : (
+                    "View Analysis Results"
+                  )}
+                </Button>
+              )}
+              
               {messages.map((message) => (
                 <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
@@ -465,9 +513,9 @@ export default function AiAssistant({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   className="flex-1"
-                  disabled={isLoading}
+                  disabled={isLoading || isWideExpanded}
                 />
-                <Button type="submit" size="icon" className="h-8 w-8" disabled={isLoading || !input.trim()}>
+                <Button type="submit" size="icon" className="h-8 w-8" disabled={isLoading || !input.trim() || isWideExpanded}>
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </form>

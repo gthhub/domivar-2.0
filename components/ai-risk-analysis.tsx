@@ -240,7 +240,7 @@ export default function AiRiskAnalysis() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">AI Risk Analysis</h2>
+          <h2 className="text-2xl font-bold tracking-tight">AI Risk Review</h2>
           <p className="text-muted-foreground">
             Comprehensive risk analysis of your FX options portfolio across multiple scenarios
           </p>
@@ -563,7 +563,7 @@ export default function AiRiskAnalysis() {
       {/* Detailed Analysis Tabs */}
       <Tabs defaultValue="scenarios" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="scenarios">Scenario Analysis</TabsTrigger>
+          <TabsTrigger value="scenarios">General Scenarios</TabsTrigger>
           <TabsTrigger value="distribution">P&L Distribution</TabsTrigger>
           <TabsTrigger value="correlations">Correlation Sensitivities</TabsTrigger>
           <TabsTrigger value="views">View Alignment</TabsTrigger>

@@ -40,12 +40,12 @@ export default function Sidebar({ currentView, setCurrentView, selectedSession, 
     },
     {
       id: "airisk",
-      label: "AI Risk Analysis",
+      label: "AI Risk Review",
       icon: Zap,
     },
     {
       id: "scenario",
-      label: "Scenario Analysis",
+      label: "Scenario Ladders",
       icon: LineChart,
     },
     {

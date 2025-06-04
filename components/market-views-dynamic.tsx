@@ -7,7 +7,7 @@ import { useMarketViews, MarketView, MacroView } from "./market-views-context"
 import { useEffect, useRef, useState } from "react"
 
 export default function MarketViewsDynamic({ threadId }: { threadId?: string }) {
-  const { marketViews, refreshMarketViews, isRefreshing } = useMarketViews()
+  const { marketViews, refreshMarketViews, isRefreshing, updateMarketViews } = useMarketViews()
   const hasAutoRefreshed = useRef(false)
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false)
 
@@ -61,15 +61,35 @@ export default function MarketViewsDynamic({ threadId }: { threadId?: string }) 
   }, []) // Empty dependency array - only runs on mount
 
   const handleRefresh = async () => {
-    if (threadId) {
-      const success = await refreshMarketViews(threadId)
-      if (!success) {
-        console.error('Failed to refresh market views')
-        // You could add a toast notification here
+    console.log('=== MANUAL REFRESH TRIGGERED ===')
+    console.log('Current threadId:', threadId)
+    
+    setIsAutoRefreshing(true) // Use the existing loading state
+    
+    try {
+      // Use the same API endpoint that works during initialization
+      // Try with provided threadId first, or let API find/create one with data
+      const url = threadId ? `/api/graph-state?threadId=${threadId}` : '/api/graph-state'
+      const response = await fetch(url)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Manual refresh response:', data)
+        
+        if (data.success && data.graph_state) {
+          // Use the updateMarketViews function directly
+          updateMarketViews(data.graph_state)
+          console.log('Manual refresh completed successfully')
+        } else {
+          console.log('No graph state in manual refresh response')
+        }
+      } else {
+        console.error('Manual refresh failed:', response.status)
       }
-    } else {
-      console.log('No thread ID available for refresh')
-      // You could show a message to the user here
+    } catch (error) {
+      console.error('Error during manual refresh:', error)
+    } finally {
+      setIsAutoRefreshing(false)
     }
   }
 

@@ -62,11 +62,11 @@ export async function GET(request: NextRequest) {
           }
         }
         
-        // If we still don't have a threadId, create a new one and populate it
+        // If we still don't have a threadId, create a new thread and properly initialize it
         if (!threadId) {
-          console.log('No existing threads with data found, creating new thread...')
+          console.log('No existing threads with market views found, creating and initializing new thread...')
           
-          // Create a minimal thread
+          // Create a new thread
           const createThreadResponse = await fetch(`${apiUrl}/threads`, {
             method: 'POST',
             headers: {
@@ -83,8 +83,8 @@ export async function GET(request: NextRequest) {
             threadId = threadData.thread_id
             console.log('Created new thread:', threadId)
             
-            // Send a minimal message to populate the graph state
-            console.log('Sending minimal message to populate graph state...')
+            // Send a minimal message to initialize the user's global context (including market views)
+            console.log('Sending minimal message to initialize user context...')
             const runResponse = await fetch(`${apiUrl}/threads/${threadId}/runs`, {
               method: 'POST',
               headers: {
@@ -106,12 +106,37 @@ export async function GET(request: NextRequest) {
             
             if (runResponse.ok) {
               const runData = await runResponse.json()
-              console.log('Minimal run created:', runData.run_id)
+              console.log('Initialization run created:', runData.run_id)
               
-              // Wait a moment for the run to complete
-              await new Promise(resolve => setTimeout(resolve, 2000))
+              // Poll for completion like the chat API does
+              let attempts = 0
+              const maxAttempts = 30 // 30 seconds max
+              
+              while (attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                
+                const statusResponse = await fetch(
+                  `${apiUrl}/threads/${threadId}/runs/${runData.run_id}`,
+                  { headers: { 'X-Api-Key': apiKey } }
+                )
+                
+                if (statusResponse.ok) {
+                  const statusData = await statusResponse.json()
+                  console.log(`Initialization poll ${attempts + 1}:`, statusData.status)
+                  
+                  if (statusData.status === 'success') {
+                    console.log('Thread initialized successfully')
+                    break
+                  } else if (statusData.status === 'error') {
+                    console.error('Initialization failed:', statusData.error)
+                    break
+                  }
+                }
+                attempts++
+              }
             }
           } else {
+            console.error('Failed to create thread for initialization')
             return NextResponse.json({ 
               error: 'Could not create thread for graph state' 
             }, { status: 500 })

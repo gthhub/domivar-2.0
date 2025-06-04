@@ -66,6 +66,19 @@ export function MarketViewsProvider({ children }: { children: ReactNode }) {
     Object.entries(marketViewsData).forEach(([key, view]: [string, any]) => {
       console.log(`Processing view: ${key}`, view)
       
+      // Skip views with incomplete data that would result in dummy views
+      if (!view.conviction || !view.rationale || !view.direction || 
+          view.conviction === null || view.direction === 'neutral' && !view.conviction) {
+        console.log(`Skipping view ${key} - incomplete data:`, {
+          hasConviction: !!view.conviction,
+          hasRationale: !!view.rationale,
+          hasDirection: !!view.direction,
+          conviction: view.conviction,
+          direction: view.direction
+        })
+        return
+      }
+      
       // Parse the key to extract asset, instrument, and timeframe
       // Format examples: "EURUSD_spot_3_months", "USDJPY_vol_1_week", "BTC_vol_medium_term"
       const parts = key.split('_')
@@ -80,7 +93,7 @@ export function MarketViewsProvider({ children }: { children: ReactNode }) {
           category: 'geopolitical', // Default category, could be enhanced
           outlook: view.direction === 'bullish' ? 'positive' : 
                   view.direction === 'bearish' ? 'negative' : 'neutral',
-          reasoning: view.rationale || 'No specific reasoning provided',
+          reasoning: view.rationale,
           lastUpdated: new Date(view.created_at || Date.now()),
           conversationId: graphState.current_query || undefined
         }
@@ -103,8 +116,8 @@ export function MarketViewsProvider({ children }: { children: ReactNode }) {
           standardTimeframe = 'long-term'
         }
         
-        // Map conviction to confidence percentage
-        let confidence = 50 // Default
+        // Map conviction to confidence percentage (no defaults - we already filtered incomplete data)
+        let confidence = 50
         if (view.conviction === 'high') confidence = 85
         else if (view.conviction === 'medium') confidence = 65
         else if (view.conviction === 'low') confidence = 35
@@ -115,11 +128,10 @@ export function MarketViewsProvider({ children }: { children: ReactNode }) {
         const marketView: MarketView = {
           id: key,
           currencyPair: finalCurrencyPair,
-          direction: view.direction === 'bullish' ? 'bullish' : 
-                    view.direction === 'bearish' ? 'bearish' : 'neutral',
+          direction: view.direction as 'bullish' | 'bearish' | 'neutral',
           timeframe: standardTimeframe,
           confidence: confidence,
-          reasoning: view.rationale || `${view.direction} view on ${currencyPair} ${instrument}`,
+          reasoning: view.rationale,
           lastUpdated: new Date(view.created_at || Date.now()),
           conversationId: graphState.current_query || undefined
         }

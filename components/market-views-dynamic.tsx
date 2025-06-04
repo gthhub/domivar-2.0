@@ -10,51 +10,72 @@ export default function MarketViewsDynamic({ threadId }: { threadId?: string }) 
   const { marketViews, refreshMarketViews, isRefreshing, updateMarketViews } = useMarketViews()
   const hasAutoRefreshed = useRef(false)
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false)
+  const initializationRef = useRef<Promise<void> | null>(null)
 
   // Auto-refresh ONLY when component mounts (when tab is navigated to)
   useEffect(() => {
     const initializeMarketViews = async () => {
-      if (hasAutoRefreshed.current) return
-
-      console.log('Initializing market views...')
-      setIsAutoRefreshing(true)
-      
-      try {
-        // Try with provided threadId first, or let API find/create one with data
-        const url = threadId ? `/api/graph-state?threadId=${threadId}` : '/api/graph-state'
-        const response = await fetch(url)
-        
-        if (response.ok) {
-          const data = await response.json()
-          console.log('Graph state response:', data)
-          console.log('Market views in response:', data.graph_state?.market_views)
-          console.log('Market views count:', data.graph_state?.market_views ? Object.keys(data.graph_state.market_views).length : 0)
-          
-          if (data.success && data.graph_state) {
-            // Check if we have any market views data
-            const hasMarketViews = data.graph_state.market_views && Object.keys(data.graph_state.market_views).length > 0
-            
-            if (hasMarketViews) {
-              console.log('Found market views, updating context')
-              await refreshMarketViews(data.thread_id)
-            } else {
-              console.log('No market views found - this may be a new user or system')
-            }
-            
-            hasAutoRefreshed.current = true
-            
-            if (data.created_new_thread) {
-              console.log('API created/found thread for market views:', data.thread_id)
-            }
-          }
-        } else {
-          console.log('Could not fetch graph state:', response.status)
-        }
-      } catch (error) {
-        console.log('Could not initialize market views:', error)
-      } finally {
-        setIsAutoRefreshing(false)
+      // Prevent multiple simultaneous calls
+      if (hasAutoRefreshed.current || initializationRef.current) {
+        console.log('Initialization already in progress or completed, skipping')
+        return
       }
+
+      console.log('=== STARTING MARKET VIEWS INITIALIZATION ===')
+      console.log('ThreadId prop:', threadId)
+      console.log('HasAutoRefreshed:', hasAutoRefreshed.current)
+      
+      // Mark that initialization is in progress
+      const initPromise = (async () => {
+        setIsAutoRefreshing(true)
+        
+        try {
+          // Try with provided threadId first, or let API find/create one with data
+          const url = threadId ? `/api/graph-state?threadId=${threadId}` : '/api/graph-state'
+          console.log('Making API call to:', url)
+          const response = await fetch(url)
+          
+          if (response.ok) {
+            const data = await response.json()
+            console.log('=== INITIALIZATION API RESPONSE ===')
+            console.log('Graph state response:', data)
+            console.log('Thread ID from response:', data.thread_id)
+            console.log('Created new thread?:', data.created_new_thread)
+            console.log('Market views in response:', data.graph_state?.market_views)
+            console.log('Market views count:', data.graph_state?.market_views ? Object.keys(data.graph_state.market_views).length : 0)
+            
+            if (data.success && data.graph_state) {
+              // Check if we have any market views data
+              const hasMarketViews = data.graph_state.market_views && Object.keys(data.graph_state.market_views).length > 0
+              
+              if (hasMarketViews) {
+                console.log('Found market views, updating context directly')
+                // Use updateMarketViews directly instead of making another API call
+                updateMarketViews(data.graph_state)
+              } else {
+                console.log('No market views found - this may be a new user or system')
+              }
+              
+              hasAutoRefreshed.current = true
+              
+              if (data.created_new_thread) {
+                console.log('API created/found thread for market views:', data.thread_id)
+              }
+            }
+          } else {
+            console.log('Could not fetch graph state:', response.status)
+          }
+        } catch (error) {
+          console.log('Could not initialize market views:', error)
+        } finally {
+          setIsAutoRefreshing(false)
+          initializationRef.current = null
+        }
+      })()
+      
+      initializationRef.current = initPromise
+      await initPromise
+      console.log('=== MARKET VIEWS INITIALIZATION COMPLETE ===')
     }
 
     initializeMarketViews()

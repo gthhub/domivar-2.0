@@ -856,6 +856,7 @@ export default function Dashboard() {
             createNewSession={createNewSession}
             updateSession={updateSession}
             navigateToSessionResults={navigateToSessionResults}
+            addAnalysisOutput={addAnalysisOutput}
           />
         </div>
       </div>

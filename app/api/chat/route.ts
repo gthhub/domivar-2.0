@@ -248,6 +248,10 @@ export async function POST(request: NextRequest) {
                   intent: stateData.values?.intent,
                   preferences: stateData.values?.preferences,
                   market_views: stateData.values?.market_views,
+                  // ✅ NEW: Include scenario analysis fields
+                  scenario_analysis: stateData.values?.scenario_analysis,
+                  batch_scenario_analysis: stateData.values?.batch_scenario_analysis,
+                  scenario_results: stateData.values?.scenario_results,
                   // ✅ NEW: Include the full state values for debugging
                   full_state: stateData.values
                 }

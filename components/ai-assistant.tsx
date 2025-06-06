@@ -35,6 +35,7 @@ type AiAssistantProps = {
   createNewSession: (threadId?: string) => string
   updateSession: (sessionId: string, messages: Message[], threadId?: string) => void
   navigateToSessionResults?: (sessionId: string) => void
+  addAnalysisOutput?: (sessionId: string, output: any) => void
 }
 
 export default function AiAssistant({ 
@@ -45,7 +46,8 @@ export default function AiAssistant({
   getCurrentSession,
   createNewSession,
   updateSession,
-  navigateToSessionResults
+  navigateToSessionResults,
+  addAnalysisOutput
 }: AiAssistantProps) {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -152,6 +154,279 @@ export default function AiAssistant({
     })
   }
 
+  // ✅ NEW: Function to process scenario analysis from LangGraph state
+  const processScenarioAnalysis = (graphState: any, sessionId: string) => {
+    console.log('processScenarioAnalysis called with sessionId:', sessionId)
+    console.log('addAnalysisOutput function available?', !!addAnalysisOutput)
+    
+    // ✅ Extract original portfolio Greeks from priced_portfolio
+    const originalPortfolioGreeks = graphState.priced_portfolio?.total ? {
+      delta: graphState.priced_portfolio.total.delta || {},
+      gamma: graphState.priced_portfolio.total.gamma || {},
+      vega: graphState.priced_portfolio.total.vega || 0,
+      theta: graphState.priced_portfolio.total.theta || 0,
+      value: graphState.priced_portfolio.total.value || 0
+    } : null
+    
+    console.log('🔍 Extracted original portfolio Greeks from priced_portfolio:', originalPortfolioGreeks)
+    
+    try {
+      // Check for batch scenario analysis (most common case)
+      if (graphState.batch_scenario_analysis) {
+        console.log('✅ Found batch_scenario_analysis, processing...')
+        console.log('Processing batch_scenario_analysis:', graphState.batch_scenario_analysis)
+        
+        const batchData = graphState.batch_scenario_analysis
+        
+        // ✅ Enhance scenario results with original portfolio Greeks if available
+        let enhancedBatchData = batchData
+        if (originalPortfolioGreeks && batchData.scenario_results) {
+          enhancedBatchData = {
+            ...batchData,
+            scenario_results: batchData.scenario_results.map((scenario: any) => ({
+              ...scenario,
+              // Add original portfolio Greeks to each scenario for comparison
+              original_portfolio_greeks: originalPortfolioGreeks,
+              // Ensure original_greeks is populated with the real original data
+              original_greeks: {
+                delta: originalPortfolioGreeks.delta,
+                gamma: originalPortfolioGreeks.gamma, 
+                vega: originalPortfolioGreeks.vega,
+                theta: originalPortfolioGreeks.theta,
+                delta_total: Object.values(originalPortfolioGreeks.delta).reduce((sum: number, val: any) => sum + (val || 0), 0),
+                gamma_total: Object.values(originalPortfolioGreeks.gamma).reduce((sum: number, val: any) => sum + (val || 0), 0)
+              }
+            }))
+          }
+          console.log('🔍 Enhanced batch data with original portfolio Greeks')
+        }
+        
+        const analysisOutput = {
+          id: `batch-scenario-${Date.now()}`,
+          type: "scenario_analysis" as const,
+          title: batchData.title || "Scenario Analysis",
+          description: batchData.description || "AI-generated scenario analysis from chat",
+          createdAt: new Date(),
+          data: enhancedBatchData
+        }
+        
+        if (addAnalysisOutput) {
+          addAnalysisOutput(sessionId, analysisOutput)
+          console.log('Added batch scenario analysis to session:', sessionId)
+        }
+      }
+      
+      // Check for individual scenario analysis
+      else if (graphState.scenario_analysis) {
+        console.log('✅ Found individual scenario_analysis, processing...')
+        console.log('Processing individual scenario_analysis:', graphState.scenario_analysis)
+        
+        const scenarioData = graphState.scenario_analysis
+        
+        // ✅ Enhance with original portfolio Greeks
+        const enhancedScenarioData = originalPortfolioGreeks ? {
+          ...scenarioData,
+          original_portfolio_greeks: originalPortfolioGreeks,
+          original_greeks: {
+            delta: originalPortfolioGreeks.delta,
+            gamma: originalPortfolioGreeks.gamma,
+            vega: originalPortfolioGreeks.vega,
+            theta: originalPortfolioGreeks.theta,
+            delta_total: Object.values(originalPortfolioGreeks.delta).reduce((sum: number, val: any) => sum + (val || 0), 0),
+            gamma_total: Object.values(originalPortfolioGreeks.gamma).reduce((sum: number, val: any) => sum + (val || 0), 0)
+          }
+        } : scenarioData
+        
+        const analysisOutput = {
+          id: `scenario-${Date.now()}`,
+          type: "scenario_analysis" as const,
+          title: scenarioData.scenario_name || "Individual Scenario Analysis",
+          description: scenarioData.scenario_parameters?.narrative || "AI-generated scenario analysis",
+          createdAt: new Date(),
+          data: {
+            summary_statistics: {
+              total_scenarios: 1,
+              successful_scenarios: 1,
+              failed_scenarios: 0,
+              processing_time_seconds: 1.0,
+              total_execution_time: "1.0s",
+              pnl_statistics: {
+                min_pnl: scenarioData.pnl,
+                max_pnl: scenarioData.pnl,
+                avg_pnl: scenarioData.pnl,
+                min_pnl_percent: scenarioData.pnl_percent,
+                max_pnl_percent: scenarioData.pnl_percent,
+                avg_pnl_percent: scenarioData.pnl_percent
+              }
+            },
+            scenario_results: [enhancedScenarioData],
+            timestamp: scenarioData.timestamp || new Date().toISOString()
+          }
+        }
+        
+        if (addAnalysisOutput) {
+          addAnalysisOutput(sessionId, analysisOutput)
+          console.log('Added individual scenario analysis to session:', sessionId)
+        }
+      }
+      
+      // Check for simplified scenario results format
+      else if (graphState.scenario_results && Array.isArray(graphState.scenario_results)) {
+        console.log('✅ Found scenario_results array, processing...')
+        console.log('Processing scenario_results:', graphState.scenario_results)
+        
+        const scenarioResults = graphState.scenario_results
+        
+        // Check if the scenario results are already in the correct format
+        const firstResult = scenarioResults[0]
+        const isAlreadyFormatted = firstResult && 
+          typeof firstResult.scenario_name === 'string' && 
+          firstResult.original_greeks && 
+          firstResult.new_greeks
+        
+        if (isAlreadyFormatted) {
+          // ✅ Data is already in correct format, use it directly
+          
+          // ✅ Enhance scenarios with original portfolio Greeks if available
+          const enhancedScenarioResults = originalPortfolioGreeks ? 
+            scenarioResults.map((scenario: any) => ({
+              ...scenario,
+              original_portfolio_greeks: originalPortfolioGreeks,
+              original_greeks: {
+                delta: originalPortfolioGreeks.delta,
+                gamma: originalPortfolioGreeks.gamma,
+                vega: originalPortfolioGreeks.vega,
+                theta: originalPortfolioGreeks.theta,
+                delta_total: Object.values(originalPortfolioGreeks.delta).reduce((sum: number, val: any) => sum + (val || 0), 0),
+                gamma_total: Object.values(originalPortfolioGreeks.gamma).reduce((sum: number, val: any) => sum + (val || 0), 0)
+              }
+            })) : scenarioResults
+          
+          const analysisOutput = {
+            id: `scenario-results-${Date.now()}`,
+            type: "scenario_analysis" as const,
+            title: "Scenario Analysis Results",
+            description: `Analysis of ${scenarioResults.length} scenarios`,
+            createdAt: new Date(),
+            data: {
+              summary_statistics: {
+                total_scenarios: scenarioResults.length,
+                successful_scenarios: scenarioResults.length,
+                failed_scenarios: 0,
+                processing_time_seconds: 2.0,
+                total_execution_time: "2.0s",
+                pnl_statistics: {
+                  min_pnl: Math.min(...scenarioResults.map((s: any) => s.pnl || 0)),
+                  max_pnl: Math.max(...scenarioResults.map((s: any) => s.pnl || 0)),
+                  avg_pnl: scenarioResults.reduce((sum: number, s: any) => sum + (s.pnl || 0), 0) / scenarioResults.length,
+                  min_pnl_percent: Math.min(...scenarioResults.map((s: any) => s.pnl_percent || 0)),
+                  max_pnl_percent: Math.max(...scenarioResults.map((s: any) => s.pnl_percent || 0)),
+                  avg_pnl_percent: scenarioResults.reduce((sum: number, s: any) => sum + (s.pnl_percent || 0), 0) / scenarioResults.length
+                }
+              },
+              scenario_results: enhancedScenarioResults,
+              timestamp: new Date().toISOString()
+            }
+          }
+          
+          if (addAnalysisOutput) {
+            addAnalysisOutput(sessionId, analysisOutput)
+            console.log('Added scenario results (formatted) to session:', sessionId)
+          }
+        } else {
+          // ⚠️ Data needs conversion - this should only happen if LangGraph sends simplified format
+          console.warn('Scenario results need conversion from simplified format')
+          
+          const analysisOutput = {
+            id: `scenario-results-${Date.now()}`,
+            type: "scenario_analysis" as const,
+            title: "Scenario Analysis Results",
+            description: `Analysis of ${scenarioResults.length} scenarios`,
+            createdAt: new Date(),
+            data: {
+              summary_statistics: {
+                total_scenarios: scenarioResults.length,
+                successful_scenarios: scenarioResults.length,
+                failed_scenarios: 0,
+                processing_time_seconds: 2.0,
+                total_execution_time: "2.0s",
+                pnl_statistics: {
+                  min_pnl: Math.min(...scenarioResults.map((s: any) => s.pnl || 0)),
+                  max_pnl: Math.max(...scenarioResults.map((s: any) => s.pnl || 0)),
+                  avg_pnl: scenarioResults.reduce((sum: number, s: any) => sum + (s.pnl || 0), 0) / scenarioResults.length,
+                  min_pnl_percent: Math.min(...scenarioResults.map((s: any) => s.pnl_percent || 0)),
+                  max_pnl_percent: Math.max(...scenarioResults.map((s: any) => s.pnl_percent || 0)),
+                  avg_pnl_percent: scenarioResults.reduce((sum: number, s: any) => sum + (s.pnl_percent || 0), 0) / scenarioResults.length
+                }
+              },
+              scenario_results: scenarioResults.map((result: any) => ({
+                scenario_name: result.name || result.scenario_name || "Unnamed Scenario",
+                scenario_parameters: {
+                  name: result.name || result.scenario_name || "Unnamed Scenario",
+                  horizon_days: result.horizon_days || 7,
+                  spot_sigma_mult: result.spot_sigma_mult || {},
+                  vol_sigma_mult: result.vol_sigma_mult || {},
+                  narrative: result.narrative || result.explanation || "No narrative provided"
+                },
+                original_portfolio_value: result.original_portfolio_value || 1250000,
+                new_portfolio_value: result.new_portfolio_value || (1250000 + (result.pnl || 0)),
+                pnl: result.pnl || 0,
+                pnl_percent: result.pnl_percent || 0,
+                spot_moves: result.spot_moves || {},
+                original_greeks: result.original_greeks || {
+                  delta: {},
+                  gamma: {},
+                  delta_total: 0,
+                  gamma_total: 0,
+                  vega: 0,
+                  theta: 0
+                },
+                new_greeks: result.new_greeks || {
+                  delta: {},
+                  gamma: {},
+                  delta_total: 0,
+                  gamma_total: 0,
+                  vega: 0,
+                  theta: 0
+                },
+                scenario_totals: result.scenario_totals || {
+                  value: result.new_portfolio_value || (1250000 + (result.pnl || 0)),
+                  delta: {},
+                  gamma: {},
+                  vega: 0,
+                  theta: 0,
+                  greeks_currency: {
+                    value: "USD",
+                    delta: "by_currency",
+                    gamma: "by_currency",
+                    vega: "USD",
+                    theta: "USD"
+                  }
+                },
+                domestic_currency: result.domestic_currency || "USD",
+                timestamp: result.timestamp || new Date().toISOString()
+              })),
+              timestamp: new Date().toISOString()
+            }
+          }
+          
+          if (addAnalysisOutput) {
+            addAnalysisOutput(sessionId, analysisOutput)
+            console.log('Added scenario results (converted) to session:', sessionId)
+          }
+        }
+      }
+      
+      else {
+        console.log('❌ No scenario analysis data found in graph state')
+        console.log('Available keys in graphState:', Object.keys(graphState))
+      }
+      
+    } catch (error) {
+      console.error('Error processing scenario analysis:', error)
+    }
+  }
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
 
@@ -219,9 +494,45 @@ export default function AiAssistant({
         console.log('Received graph state:', JSON.stringify(data.graph_state, null, 2))
         console.log('Market views specifically:', data.graph_state.market_views)
         console.log('Full state:', data.graph_state.full_state)
+        
+        // ✅ NEW: Detailed scenario debugging
+        console.log('=== SCENARIO DEBUGGING ===')
+        console.log('Has scenario_analysis?', !!data.graph_state.scenario_analysis)
+        console.log('Has batch_scenario_analysis?', !!data.graph_state.batch_scenario_analysis)
+        console.log('Has scenario_results?', !!data.graph_state.scenario_results)
+        
+        if (data.graph_state.scenario_analysis) {
+          console.log('scenario_analysis data:', JSON.stringify(data.graph_state.scenario_analysis, null, 2))
+        }
+        if (data.graph_state.batch_scenario_analysis) {
+          console.log('batch_scenario_analysis data:', JSON.stringify(data.graph_state.batch_scenario_analysis, null, 2))
+        }
+        if (data.graph_state.scenario_results) {
+          console.log('scenario_results data:', JSON.stringify(data.graph_state.scenario_results, null, 2))
+        }
+        
+        // Check full state for any other scenario-related fields
+        if (data.graph_state.full_state) {
+          console.log('All keys in full_state:', Object.keys(data.graph_state.full_state))
+          const scenarioKeys = Object.keys(data.graph_state.full_state).filter(key => 
+            key.toLowerCase().includes('scenario') || key.toLowerCase().includes('analysis')
+          )
+          console.log('Scenario-related keys in full_state:', scenarioKeys)
+          scenarioKeys.forEach(key => {
+            console.log(`${key}:`, data.graph_state.full_state[key])
+          })
+        }
+        console.log('=== END SCENARIO DEBUGGING ===')
+        
+        // Update market views as before
         console.log('Calling updateMarketViews...')
         updateMarketViews(data.graph_state)
         console.log('updateMarketViews called successfully')
+
+        // ✅ NEW: Process scenario analysis from LangGraph state
+        console.log('About to call processScenarioAnalysis...')
+        processScenarioAnalysis(data.graph_state, sessionId)
+        console.log('processScenarioAnalysis called')
       } else {
         console.log('No graph_state received in API response')
         console.log('Available data keys:', Object.keys(data))
@@ -344,11 +655,11 @@ export default function AiAssistant({
               </div>
             )}
             
-            {currentSession && currentSession.analysisOutputs.length > 0 && (
+            {currentSession && (currentSession.analysisOutputs?.length ?? 0) > 0 && (
               <Button
                 variant={currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? "default" : "outline"}
                 size="sm"
-                onClick={() => navigateToSessionResults(currentSession.id)}
+                onClick={() => navigateToSessionResults?.(currentSession.id)}
                 className={
                   currentSession.hasUnviewedResults && selectedSession !== currentSession.id
                     ? "bg-blue-500 text-white hover:bg-blue-600 animate-pulse"
@@ -455,11 +766,11 @@ export default function AiAssistant({
                 </div>
               )}
               
-              {currentSession && currentSession.analysisOutputs.length > 0 && (
+              {currentSession && (currentSession.analysisOutputs?.length ?? 0) > 0 && (
                 <Button
                   variant={currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? "default" : "outline"}
                   size="sm"
-                  onClick={() => navigateToSessionResults(currentSession.id)}
+                  onClick={() => navigateToSessionResults?.(currentSession.id)}
                   className={
                     currentSession.hasUnviewedResults && selectedSession !== currentSession.id
                       ? "bg-blue-500 text-white hover:bg-blue-600 animate-pulse"

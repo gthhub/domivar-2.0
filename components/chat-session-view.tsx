@@ -208,11 +208,33 @@ export default function ChatSessionView({ session }: ChatSessionViewProps) {
     // Use scenario_totals for the most accurate data as per specification
     const totals = scenario.scenario_totals
     
+    // Handle the nested structure where delta/gamma have USD as outer key
+    let deltaValues: { [currency: string]: number } = {}
+    let gammaValues: { [currency: string]: number } = {}
+    
+    if (totals?.delta && typeof totals.delta === 'object') {
+      // Check if it's the nested USD structure
+      if (totals.delta.USD && typeof totals.delta.USD === 'object') {
+        deltaValues = totals.delta.USD  // Extract the inner currency object
+      } else {
+        deltaValues = totals.delta  // Use as-is if not nested
+      }
+    }
+    
+    if (totals?.gamma && typeof totals.gamma === 'object') {
+      // Check if it's the nested USD structure  
+      if (totals.gamma.USD && typeof totals.gamma.USD === 'object') {
+        gammaValues = totals.gamma.USD  // Extract the inner currency object
+      } else {
+        gammaValues = totals.gamma  // Use as-is if not nested
+      }
+    }
+    
     return {
-      delta: totals.delta,  // Already by currency from scenario_totals
-      gamma: totals.gamma,  // Already by currency from scenario_totals  
-      vega: totals.vega,    // Total portfolio vega
-      theta: totals.theta   // Total portfolio theta
+      delta: deltaValues,
+      gamma: gammaValues,
+      vega: totals?.vega || 0,     // Total portfolio vega
+      theta: totals?.theta || 0    // Total portfolio theta
     }
   }
 
@@ -444,30 +466,63 @@ export default function ChatSessionView({ session }: ChatSessionViewProps) {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {data.scenario_results[selectedScenarioIndex] && Object.entries(getGreeksByCurrency(data.scenario_results[selectedScenarioIndex]).delta).map(([currency, newDelta]) => {
+                          {data.scenario_results[selectedScenarioIndex] && (() => {
                             const selectedScenario = data.scenario_results[selectedScenarioIndex]
-                            const originalDelta = selectedScenario.original_greeks.delta[currency] || 0
-                            const originalGamma = selectedScenario.original_greeks.gamma[currency] || 0
-                            const newGamma = getGreeksByCurrency(selectedScenario).gamma[currency] || 0
+                            const greeksByCurrency = getGreeksByCurrency(selectedScenario)
                             
-                            return (
-                              <TableRow key={currency}>
-                                <TableCell className="font-mono font-medium">{currency}</TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex flex-col">
-                                    <span className="text-xs text-muted-foreground">{formatCurrency(originalDelta)}</span>
-                                    <span className="text-sm font-medium">→ {formatCurrency(newDelta)}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex flex-col">
-                                    <span className="text-xs text-muted-foreground">{formatCurrency(originalGamma)}</span>
-                                    <span className="text-sm font-medium">→ {formatCurrency(newGamma)}</span>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            )
-                          })}
+                            console.log('🔍 DEBUG Original Greeks Structure:')
+                            console.log('selectedScenario.original_greeks:', selectedScenario.original_greeks)
+                            console.log('selectedScenario.original_greeks?.delta:', selectedScenario.original_greeks?.delta)
+                            console.log('selectedScenario.original_greeks?.gamma:', selectedScenario.original_greeks?.gamma)
+                            if (selectedScenario.original_greeks?.delta) {
+                              console.log('original_greeks.delta type:', typeof selectedScenario.original_greeks.delta)
+                              console.log('original_greeks.delta keys:', Object.keys(selectedScenario.original_greeks.delta))
+                              console.log('original_greeks.delta.USD exists:', !!selectedScenario.original_greeks.delta.USD)
+                            }
+                            
+                            // ✅ ADD: Check if original values are in scenario_totals or elsewhere
+                            console.log('🔍 DEBUG Scenario Totals Full Structure:')
+                            console.log('selectedScenario.scenario_totals:', selectedScenario.scenario_totals)
+                            console.log('selectedScenario.scenario_totals keys:', Object.keys(selectedScenario.scenario_totals))
+                            if ((selectedScenario.scenario_totals as any).original_value) {
+                              console.log('scenario_totals.original_value:', (selectedScenario.scenario_totals as any).original_value)
+                            }
+                            
+                            // ✅ ADD: Check entire scenario structure
+                            console.log('🔍 DEBUG All Scenario Keys:', Object.keys(selectedScenario))
+                            
+                            // ✅ ADD: Check original_greeks full structure
+                            if (selectedScenario.original_greeks) {
+                              console.log('🔍 DEBUG original_greeks all keys:', Object.keys(selectedScenario.original_greeks))
+                              console.log('🔍 DEBUG original_greeks full object:', JSON.stringify(selectedScenario.original_greeks, null, 2))
+                            }
+                            
+                            return Object.entries(greeksByCurrency.delta).map(([currency, newDelta]) => {
+                              const newGamma = greeksByCurrency.gamma[currency] || 0
+                              
+                              // ✅ Now get original Greeks from the enhanced data (from priced_portfolio)
+                              const originalDelta = selectedScenario.original_greeks?.delta?.[currency] || 0
+                              const originalGamma = selectedScenario.original_greeks?.gamma?.[currency] || 0
+                              
+                              return (
+                                <TableRow key={currency}>
+                                  <TableCell className="font-mono font-medium">{currency}</TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex flex-col">
+                                      <span className="text-xs text-muted-foreground">{formatCurrency(originalDelta)}</span>
+                                      <span className="text-sm font-medium">→ {formatCurrency(newDelta)}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex flex-col">
+                                      <span className="text-xs text-muted-foreground">{formatCurrency(originalGamma)}</span>
+                                      <span className="text-sm font-medium">→ {formatCurrency(newGamma)}</span>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })
+                          })()}
                         </TableBody>
                       </Table>
                     </div>

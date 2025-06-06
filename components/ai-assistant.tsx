@@ -647,34 +647,38 @@ export default function AiAssistant({
             </Button>
           </div>
         </CardHeader>
-        <CardContent className={`flex-1 overflow-auto p-4 ${isWideExpanded ? 'opacity-30' : ''}`}>
+        
+        {/* Sticky notification for results availability - moved outside CardContent */}
+        {currentSession && (currentSession.analysisOutputs?.length ?? 0) > 0 && (
+          <div className="sticky top-0 z-10 px-4 py-3 bg-background border-b">
+            <Button
+              variant={currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? "default" : "outline"}
+              size="sm"
+              onClick={() => navigateToSessionResults?.(currentSession.id)}
+              className={
+                currentSession.hasUnviewedResults && selectedSession !== currentSession.id
+                  ? "bg-blue-500 text-white hover:bg-blue-600 animate-pulse w-full"
+                  : "text-blue-500 hover:text-blue-600 w-full"
+              }
+            >
+              {currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? (
+                <>
+                  <span className="mr-1">🔔</span>
+                  New Analysis Results Available
+                </>
+              ) : (
+                "View Analysis Results"
+              )}
+            </Button>
+          </div>
+        )}
+        
+        <CardContent className={`flex-1 overflow-auto p-4 relative ${isWideExpanded ? 'opacity-30' : ''}`}>
           <div className="space-y-4">
             {selectedSession && (
               <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 mb-4">
                 Viewing chat history for: {getSessionTitle()}
               </div>
-            )}
-            
-            {currentSession && (currentSession.analysisOutputs?.length ?? 0) > 0 && (
-              <Button
-                variant={currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => navigateToSessionResults?.(currentSession.id)}
-                className={
-                  currentSession.hasUnviewedResults && selectedSession !== currentSession.id
-                    ? "bg-blue-500 text-white hover:bg-blue-600 animate-pulse"
-                    : "text-blue-500 hover:text-blue-600"
-                }
-              >
-                {currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? (
-                  <>
-                    <span className="mr-1">🔔</span>
-                    New Analysis Results Available
-                  </>
-                ) : (
-                  "View Analysis Results"
-                )}
-              </Button>
             )}
             
             {messages.map((message) => (
@@ -758,34 +762,38 @@ export default function AiAssistant({
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="flex-1 overflow-auto p-4">
+          
+          {/* Sticky notification for results availability - moved outside CardContent */}
+          {currentSession && (currentSession.analysisOutputs?.length ?? 0) > 0 && (
+            <div className="sticky top-0 z-10 px-4 py-3 bg-background border-b">
+              <Button
+                variant={currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => navigateToSessionResults?.(currentSession.id)}
+                className={
+                  currentSession.hasUnviewedResults && selectedSession !== currentSession.id
+                    ? "bg-blue-500 text-white hover:bg-blue-600 animate-pulse w-full"
+                    : "text-blue-500 hover:text-blue-600 w-full"
+                }
+              >
+                {currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? (
+                  <>
+                    <span className="mr-1">🔔</span>
+                    New Analysis Results Available
+                  </>
+                ) : (
+                  "View Analysis Results"
+                )}
+              </Button>
+            </div>
+          )}
+          
+          <CardContent className="flex-1 overflow-auto p-4 relative">
             <div className="space-y-4">
               {selectedSession && (
                 <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 mb-4">
                   Viewing chat history for: {getSessionTitle()}
                 </div>
-              )}
-              
-              {currentSession && (currentSession.analysisOutputs?.length ?? 0) > 0 && (
-                <Button
-                  variant={currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => navigateToSessionResults?.(currentSession.id)}
-                  className={
-                    currentSession.hasUnviewedResults && selectedSession !== currentSession.id
-                      ? "bg-blue-500 text-white hover:bg-blue-600 animate-pulse"
-                      : "text-blue-500 hover:text-blue-600"
-                  }
-                >
-                  {currentSession.hasUnviewedResults && selectedSession !== currentSession.id ? (
-                    <>
-                      <span className="mr-1">🔔</span>
-                      New Analysis Results Available
-                    </>
-                  ) : (
-                    "View Analysis Results"
-                  )}
-                </Button>
               )}
               
               {messages.map((message) => (
